@@ -1,0 +1,43 @@
+﻿.mainPageBlock {
+    background-color: #c0ffa5;
+}
+
+.rightAlign {
+    float: right;
+}
+
+.leftAlign {
+    float: left;
+}
+
+.formButton
+{
+	height:40px;
+	width:145px;
+	font-size:large;
+
+}
+
+.formButtonLarge
+{
+	height:40px;
+	width:300px;
+	font-size:large;
+}
+
+.titleBlock {
+    background-color: #CCCCCC;
+    text-align: center;
+}
+
+table.rButtonList input {
+    display: block;
+    float: left;
+    width: 30px;
+}
+
+table.rButtonList label {
+    display: block;
+    float: left;
+    width: 190px;
+}
