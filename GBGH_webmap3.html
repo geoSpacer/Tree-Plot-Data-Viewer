@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>GBGH Managed Area Viewer</title>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.7/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.7/"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+  </style>
+
+  <script>
+    const dojoConfig = {
+      has: {
+        "esri-featurelayer-webgl": 1
+      }
+    };
+  </script>
+
+  <script type="text/plain" id="forAllocZo-arcade">
+    // returns the text values for forAllocZo75 field codes
+    if ($feature.ForAllocZo75 == 5) {
+      return 'Unsuitable including roadless areas';
+    } else if ($feature.ForAllocZo75 == 7) {
+      return 'Wilderness and congressionally reserved';
+    } else {
+      return 'not unsuitable or wilderness'
+    }
+  </script>
+
+  <script type="text/plain" id="ownership-arcade">
+    // returns the text values for ownership field codes
+    if ($feature.OWNER == 1) {
+      return 'Federal';
+    } else if ($feature.OWNER == 2) {
+      return 'State';
+    } else if ($feature.OWNER == 3) {
+      return 'Family forest';
+    } else if ($feature.OWNER == 4) {
+      return 'Corporate forest';
+    } else if ($feature.OWNER == 5) {
+      return 'Tribal';
+    } else if ($feature.OWNER == 7) {
+      return 'Homeowner';
+    } else {
+      return 'Other'
+    }
+  </script>
+
+  <script type="text/plain" id="pvtMngGr-arcade">
+    // returns the text values for ownership field codes
+    if ($feature.PVT_MNG_GR == 0) {
+      return 'Arid';
+    } else if ($feature.PVT_MNG_GR == 1) {
+      return 'High elevation';
+    } else if ($feature.PVT_MNG_GR == 2) {
+      return 'Lodgepole';
+    } else if ($feature.PVT_MNG_GR == 3) {
+      return 'Moist mixed conifer';
+    } else if ($feature.PVT_MNG_GR == 4) {
+      return 'Dry mixed conifer';
+    } else if ($feature.PVT_MNG_GR == 5) {
+      return 'Ponderosa pine';
+    } else if ($feature.PVT_MNG_GR == 6) {
+      return 'Juniper';
+    } else {
+      return 'Not modeled'
+    }
+  </script>
+
+  <script>
+    require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/GroupLayer",
+        "esri/layers/FeatureLayer",
+        "esri/widgets/LayerList",
+        "esri/widgets/Home",
+        "esri/widgets/Expand",
+        "esri/widgets/BasemapGallery",
+        "dojo/domReady!"
+      ],
+      function(
+        Map, MapView, GroupLayer,
+        FeatureLayer, LayerList, Home, Expand, BasemapGallery
+      ) {
+
+        var map = new Map({
+          basemap: "osm"
+          // layers: [demographicGroupLayer]
+        });
+
+        var view = new MapView({
+          container: "viewDiv",
+          map: map,
+
+          extent: { // autocasts as new Extent()
+            xmin: -13556500,
+            ymin: 5527100,
+            xmax: -13524100,
+            ymax: 5533300,
+            spatialReference: 102100
+          }
+        });
+
+        view.when(function() {
+          var layerList = new LayerList({
+            view: view
+          });
+
+          // Add widget to the top right corner of the view
+          view.ui.add(layerList, "top-right");
+        });
+
+        var basemapGallery = new BasemapGallery({
+          view: view,
+          container: document.createElement("div")
+        });
+
+        // Create an expand instance and set the content property
+        // to the DOM node of the basemap gallery widget
+        // Use an ESRI icon font to represent the content Inside
+        // of the expand widgets
+
+        var bgExpand = new Expand({
+          view: view,
+          content: basemapGallery.domNode,
+          expandIconClass: "esri-icon-basemap"
+        });
+
+        // add the expand instance to the UI
+        view.ui.add(bgExpand, "top-left");
+
+        /*************************************************************
+         * The PopupTemplate content is the text that appears inside the
+         * popup. {fieldName} can be used to reference the value of an
+         * attribute of the selected feature. HTML elements can be used
+         * to provide structure and styles within the content. The
+         * fieldInfos property is an array of objects (each object representing
+         * a field) that is use to format number fields and customize field
+         * aliases in the popup and legend.
+         **************************************************************/
+
+        var template_PVT = { // autocasts as new PopupTemplate()
+          title: "PVT Management Grp: {expression/pvtMngGr-arcade}",
+          content: "<p>Model year 2012 - Current Policy</p>"
+        };
+
+        var template_owner = {
+          title: "{expression/ownership-arcade} ownership"
+        };
+
+        var template_alloc75 = {
+          title: "Forest management allocation is: {expression/forAllocZo-arcade}"
+        };
+
+        var arcadeExpressionInfos = [{
+          name: "forested-arcade",
+          title: "Forested status",
+          expression: "IIF($feature.Forested == 1, 'Forested', 'Nonforested')"
+        }, {
+          name: "ownership-arcade",
+          title: "Ownership names",
+          expression: document.getElementById("ownership-arcade").text
+        }, {
+          name: "forAllocZo-arcade",
+          title: "allocation names",
+          expression: document.getElementById("forAllocZo-arcade").text
+        }, {
+          name: "pvtMngGr-arcade",
+          title: "PVT management group names",
+          expression: document.getElementById("pvtMngGr-arcade").text
+        }, {
+          name: "treeSize-arcade",
+          title: "tree size",
+          expression: "IIF($feature.sizeGT5 == 1, 'larger than 10in dbh', 'less than 10in dbh')"
+        }, {
+          name: "treeStructure-arcade",
+          title: "tree structure",
+          expression: "IIF($feature.Open_ss == 1, 'open single story', 'not open single story')"
+        }, {
+          name: "nso-arcade",
+          title: "Northern Spotted Owl text",
+          expression: "IIF($feature.HCNSO2 == 2, '', 'not ')"
+        }, {
+          name: "slope-arcade",
+          title: "slope 30 percent text",
+          expression: "IIF($feature.slopeLT30 == 1, 'less than', 'greater than')"
+        }, {
+          name: "juniper-arcade",
+          title: "Juniper text",
+          expression: "IIF($feature.CT900 == 1, '', 'not ')"
+        }, {
+          name: "TSD14-arcade",
+          title: "Time since disturbance text",
+          expression: "IIF($feature.TSD14 == 1, 'greater than', 'less than')"
+        }];
+
+        template_PVT.expressionInfos = arcadeExpressionInfos;
+        template_owner.expressionInfos = arcadeExpressionInfos;
+        template_alloc75.expressionInfos = arcadeExpressionInfos;
+
+        /********************
+         * Add feature layer
+         ********************/
+
+        // GBGH North IDU constraint layer.
+        var fedThinLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/3",
+          title: "Federal thinning area",
+          outFields: ["*"],
+          popupTemplate: template_PVT
+        });
+
+        var fedThinDisturbedLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/4",
+          title: "Federal thinning recently disturbed",
+          outFields: ["*"],
+          popupTemplate: template_PVT,
+          visible: false
+        });
+
+        var ownerLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/2",
+          title: "Major land owners",
+          outFields: ["*"],
+          popupTemplate: template_owner,
+          visible: false
+        });
+
+        var northBndLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/1",
+          title: "North modeling area"
+        });
+
+        var fpfBndLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/0",
+          title: "FPF modeling area"
+        });
+
+        var noThinPVTLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/5",
+          title: "Wrong potential vegetation",
+          outFields: ["*"],
+          popupTemplate: template_PVT,
+          visible: false
+        });
+
+        var noThinSizeLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/6",
+          title: "Trees smaller than 10in dbh",
+          visible: false
+        });
+
+        var noThinNonforestLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/7",
+          title: "Nonforested areas",
+          visible: false
+        });
+
+        var noThinJuniperLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/8",
+          title: "Western Juniper",
+          visible: false
+        });
+
+        var noThinAlloc75Layer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/9",
+          title: "Wilderness and unsuitable",
+          outFields: ["*"],
+          popupTemplate: template_alloc75,
+          visible: false
+        });
+
+        var noThinNSOLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/10",
+          title: "Northern Spotted Owl habitat",
+          visible: false
+        });
+
+        var noThinSlopeLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/11",
+          title: "Over 30% slope",
+          visible: false
+        });
+
+        var noThinOpenSSLayer = new FeatureLayer({
+          url: "https://cypress.forestry.oregonstate.edu/arcgis/rest/services/olsen_fpf/GBGH_IDU3/MapServer/12",
+          title: "Open single story trees",
+          visible: false
+        });
+
+        var noFedThinGroupLayer = new GroupLayer({
+          title: "Federal unavailable for thinning",
+          visible: true,
+          visibilityMode: "independent",
+          layers: [noThinOpenSSLayer, noThinSlopeLayer, noThinNSOLayer, noThinAlloc75Layer, noThinJuniperLayer, noThinNonforestLayer, noThinSizeLayer, noThinPVTLayer],
+          opacity: 1.0
+        });
+        map.add(noFedThinGroupLayer);
+
+        var fedThinGroupLayer = new GroupLayer({
+          title: "Federal thinning layers",
+          visible: true,
+          visibilityMode: "independent",
+          layers: [fedThinDisturbedLayer, fedThinLayer],
+          opacity: 0.75
+        });
+        map.add(fedThinGroupLayer);
+
+        var defaultGroupLayer = new GroupLayer({
+          title: "Ownership boundaries",
+          visible: true,
+          visibilityMode: "independent",
+          layers: [fpfBndLayer, northBndLayer, ownerLayer],
+          opacity: 0.75
+        });
+        map.add(defaultGroupLayer);
+
+        var homeBtn = new Home({
+          view: view
+        });
+
+        // Add the home button to the top left corner of the view
+        view.ui.add(homeBtn, "top-left");
+
+      });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
